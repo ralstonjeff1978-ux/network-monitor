@@ -62,8 +62,15 @@ This application specifically detects ESP32-based deauther devices commonly used
 - Deauthentication frame patterns
 - Firmware fingerprinting
 
-### Countermeasures (experimental)
-When attacks are detected, the application can automatically deploy:
+### Countermeasures (experimental — simulated)
+> **These countermeasures are *simulated*.** They generate decoy data structures
+> (fake-network descriptors, credential traps, channel plans) for analysis and
+> experimentation — they **do not transmit RF or broadcast anything**, and nothing
+> is emitted onto the air. Detection is entirely **passive** (read-only sniffing).
+> This keeps the project firmly on the defensive/legal side; a test
+> (`tests/test_countermeasures.py`) guards against any drift into real emission.
+
+When attacks are detected, the application can *model* deploying:
 - Honeypot networks to waste attacker time
 - Battery drain tactics to exhaust attacker device batteries
 - Channel hopping to avoid targeted attacks
@@ -120,3 +127,18 @@ This application implements only defensive measures that are legally acceptable:
 - Does not interfere with emergency services
 - Remains within acceptable use policies
 - Focuses on defensive time-wasting rather than offensive disruption
+## Testing
+
+A pytest suite covers the persistence layer, the (simulated) countermeasures, and
+the ESP32/deauther fingerprinting logic:
+
+```bash
+pip install pytest scapy
+python -m pytest tests/ -q
+```
+
+- `tests/test_database.py` — SQLite CRUD round-trips against a temp database
+- `tests/test_countermeasures.py` — decoy structures + a guard that countermeasures stay **simulated** (no RF/socket transmission)
+- `tests/test_esp32_detector.py` — MAC-prefix ESP32 detection and fingerprinting
+
+All tests run offline with no network access.
