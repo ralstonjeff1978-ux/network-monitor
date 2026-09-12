@@ -1,0 +1,9 @@
+scapy>=2.7.0
+flask>=2.0.0
+flask-socketio>=5.3.0
+eventlet>=0.33.0
+bleak>=0.21.0
+winotify>=1.1.0
+requests>=2.31.0
+pystray>=0.19.0
+Pillow>=10.0.0

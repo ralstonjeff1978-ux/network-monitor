@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Network Monitor</title>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+<style>
+  body { background: #0f172a; color: #e2e8f0; font-family: 'Segoe UI', sans-serif; }
+  .status-bar {
+    padding: 20px 30px; font-size: 1.4rem; font-weight: 700;
+    border-radius: 12px; margin-bottom: 20px; text-align: center;
+    letter-spacing: 1px; transition: all 0.4s ease;
+  }
+  .status-secure  { background: #14532d; color: #4ade80; border: 2px solid #16a34a; }
+  .status-warning { background: #78350f; color: #fbbf24; border: 2px solid #d97706; }
+  .status-attack  { background: #7f1d1d; color: #f87171; border: 2px solid #dc2626;
+                    animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
+  .card-dark { background: #1e293b; border: 1px solid #334155; border-radius: 10px; }
+  .card-dark .card-header { background: #273549; border-bottom: 1px solid #334155;
+                             font-weight: 600; color: #94a3b8; font-size: 0.85rem;
+                             text-transform: uppercase; letter-spacing: 0.5px; }
+  .alert-item { padding: 10px 14px; border-radius: 8px; margin-bottom: 8px;
+                border-left: 4px solid; font-size: 0.88rem; }
+  .alert-deauth    { background: #3b1919; border-color: #ef4444; }
+  .alert-arp_spoof { background: #3b2c0a; border-color: #f59e0b; }
+  .alert-esp32     { background: #1a0a3b; border-color: #a855f7; }
+  .alert-info      { background: #0f2a1a; border-color: #22c55e; }
+  .device-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+                 padding: 10px 14px; margin-bottom: 8px; }
+  .bt-device { padding: 6px 10px; border-radius: 6px; margin-bottom: 6px;
+               background: #1e293b; border: 1px solid #334155; font-size: 0.82rem; }
+  .bt-known-attacker { border-color: #ef4444; background: #3b1919; }
+  .rssi-bar { height: 6px; border-radius: 3px; background: #334155; margin-top: 4px; }
+  .rssi-fill { height: 100%; border-radius: 3px; background: #22c55e; transition: width 0.5s; }
+  .rssi-warn { background: #f59e0b; }
+  .rssi-danger { background: #ef4444; }
+  .stat-box { background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+              padding: 16px; text-align: center; }
+  .stat-number { font-size: 2rem; font-weight: 700; color: #38bdf8; }
+  .stat-label { font-size: 0.78rem; color: #64748b; text-transform: uppercase; }
+  .traffic-row { font-size: 0.8rem; padding: 4px 8px; border-bottom: 1px solid #1e293b; }
+  .btn-danger-outline { border: 1px solid #ef4444; color: #ef4444; background: transparent; }
+  .btn-danger-outline:hover { background: #ef4444; color: white; }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: #0f172a; }
+  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+  .monitor-badge { font-size: 0.72rem; padding: 2px 8px; border-radius: 20px; }
+  .monitor-active   { background: #14532d; color: #4ade80; }
+  .monitor-inactive { background: #7f1d1d; color: #f87171; }
+  #traffic-feed { max-height: 280px; overflow-y: auto; }
+  #alert-feed   { max-height: 360px; overflow-y: auto; }
+  #bt-feed      { max-height: 280px; overflow-y: auto; }
+  #device-list  { max-height: 300px; overflow-y: auto; }
+</style>
+</head>
+<body>
+<div class="container-fluid py-3 px-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0 text-slate-300">Network Monitor
+      <span id="monitor-badge" class="monitor-badge monitor-inactive ms-2">802.11 INACTIVE</span>
+    </h5>
+    <div class="d-flex gap-2">
+      <button class="btn btn-sm btn-success" onclick="startMonitoring()">Start</button>
+      <button class="btn btn-sm btn-secondary" onclick="stopMonitoring()">Stop</button>
+      <button class="btn btn-sm btn-danger-outline" onclick="lockdown()">LOCK DOWN</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="allClear()">All Clear</button>
+    </div>
+  </div>
+
+  <div id="status-bar" class="status-bar status-secure">NETWORK SECURE</div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+      <div class="stat-box">
+        <div class="stat-number" id="stat-packets">0</div>
+        <div class="stat-label">Total Packets</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-box">
+        <div class="stat-number text-danger" id="stat-deauth">0</div>
+        <div class="stat-label">Deauth Attacks</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-box">
+        <div class="stat-number text-warning" id="stat-arp">0</div>
+        <div class="stat-label">ARP Spoof</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-box">
+        <div class="stat-number" id="stat-esp32" style="color:#a855f7">0</div>
+        <div class="stat-label">ESP32 Attacks</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-5">
+      <div class="card-dark h-100">
+        <div class="card-header d-flex justify-content-between">
+          <span>Security Alerts</span>
+          <span class="badge bg-danger" id="alert-count">0</span>
+        </div>
+        <div class="card-body p-2" id="alert-feed">
+          <p class="text-muted text-center mt-3" id="no-alerts" style="font-size:0.85rem">No alerts. Monitoring your network.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card-dark mb-3">
+        <div class="card-header">Devices on Network</div>
+        <div class="card-body p-2" id="device-list">
+          <p class="text-muted text-center mt-2" style="font-size:0.82rem">Devices appear as traffic is detected.</p>
+        </div>
+      </div>
+      <div class="card-dark">
+        <div class="card-header">Live Traffic</div>
+        <div class="p-0" id="traffic-feed">
+          <p class="text-muted text-center mt-2 mb-2" style="font-size:0.82rem">DNS queries appear here in real time.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card-dark mb-3">
+        <div class="card-header">Bluetooth Proximity</div>
+        <div class="card-body p-2" id="bt-feed">
+          <p class="text-muted text-center mt-2" style="font-size:0.82rem">Nearby devices appear here.</p>
+        </div>
+      </div>
+
+      <div class="card-dark mb-3">
+        <div class="card-header">Track Known Attacker</div>
+        <div class="card-body p-2">
+          <div class="input-group input-group-sm mb-1">
+            <input type="text" class="form-control" id="attacker-mac"
+                   placeholder="aa:bb:cc:dd:ee:ff"
+                   style="background:#0f172a;color:#e2e8f0;border-color:#334155">
+            <button class="btn btn-danger btn-sm" onclick="addAttacker()">Track</button>
+          </div>
+          <small class="text-muted">Get early warning when this device approaches.</small>
+        </div>
+      </div>
+
+      <div class="card-dark">
+        <div class="card-header d-flex justify-content-between">
+          Evidence Packages
+          <button class="btn btn-sm btn-outline-secondary py-0" onclick="loadEvidence()" style="font-size:0.72rem">Refresh</button>
+        </div>
+        <div class="card-body p-2" id="evidence-list" style="max-height:180px;overflow-y:auto">
+          <p class="text-muted" style="font-size:0.78rem">No packages yet.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-3 p-2 rounded" style="background:#1e293b;font-size:0.78rem;color:#64748b">
+    Phone alerts: Install the <strong style="color:#94a3b8">ntfy</strong> app on your phone and subscribe to
+    <strong style="color:#38bdf8">{{ ntfy_topic }}</strong>
+  </div>
+</div>
+
+<script>
+const socket = io();
+let alertCount = 0;
+
+socket.on('connect', () => { loadInitialData(); socket.emit('request_bluetooth'); });
+socket.on('status_change', d => setStatus(d.status));
+socket.on('stats_update', d => updateStats(d));
+socket.on('new_alert', a => addAlert(a));
+socket.on('bluetooth_update', d => updateBluetooth([d.device]));
+socket.on('bluetooth_snapshot', d => updateBluetooth(d));
+socket.on('traffic_update', d => addTrafficRow(d));
+socket.on('all_clear', () => setStatus('secure'));
+
+const statusConfig = {
+  secure:  { cls: 'status-secure',  text: 'NETWORK SECURE' },
+  warning: { cls: 'status-warning', text: 'WARNING — SUSPICIOUS ACTIVITY' },
+  attack:  { cls: 'status-attack',  text: 'UNDER ATTACK' },
+};
+
+function setStatus(s) {
+  const bar = document.getElementById('status-bar');
+  const cfg = statusConfig[s] || statusConfig.secure;
+  bar.className = 'status-bar ' + cfg.cls;
+  bar.textContent = cfg.text;
+}
+
+function updateStats(s) {
+  if (s.total_packets  !== undefined) document.getElementById('stat-packets').textContent = s.total_packets.toLocaleString();
+  if (s.deauth_count   !== undefined) document.getElementById('stat-deauth').textContent  = s.deauth_count;
+  if (s.arp_spoof_count!== undefined) document.getElementById('stat-arp').textContent     = s.arp_spoof_count;
+  if (s.esp32_count    !== undefined) document.getElementById('stat-esp32').textContent   = s.esp32_count;
+  if (s.dot11_frames > 0) {
+    const b = document.getElementById('monitor-badge');
+    b.className = 'monitor-badge monitor-active ms-2';
+    b.textContent = '802.11 ACTIVE';
+  }
+}
+
+const alertClasses = { deauth:'alert-deauth', arp_spoof:'alert-arp_spoof', esp32_attack:'alert-esp32' };
+
+function addAlert(alert) {
+  const feed = document.getElementById('alert-feed');
+  const none = document.getElementById('no-alerts');
+  if (none) none.remove();
+  alertCount++;
+  document.getElementById('alert-count').textContent = alertCount;
+  const ts = new Date(alert.timestamp).toLocaleTimeString();
+  const cls = alertClasses[alert.type] || 'alert-info';
+  const threatColor = {high:'#ef4444', critical:'#a855f7', medium:'#f59e0b'}[alert.threat_level] || '#64748b';
+  const div = document.createElement('div');
+  div.className = 'alert-item ' + cls;
+  div.innerHTML = `
+    <div class="d-flex justify-content-between">
+      <span style="color:${threatColor};font-weight:600">${(alert.type||'').replace('_',' ').toUpperCase()}</span>
+      <small style="color:#64748b">${ts}</small>
+    </div>
+    <div style="color:#cbd5e1;margin-top:4px">${alert.message}</div>
+    ${alert.source ? `<small style="color:#64748b">Source: ${alert.source}</small>` : ''}
+  `;
+  feed.insertBefore(div, feed.firstChild);
+}
+
+const deviceIcons = {tv:'📺',phone:'📱',laptop:'💻',camera:'📷',speaker:'🔊',router:'📡',unknown:'❓'};
+
+function updateDevices(devices) {
+  const list = document.getElementById('device-list');
+  if (!devices || !devices.length) return;
+  list.innerHTML = '';
+  devices.forEach(d => {
+    const icon = deviceIcons[d.device_type] || '❓';
+    const div = document.createElement('div');
+    div.className = 'device-card';
+    div.innerHTML = `
+      <span style="font-size:1.2rem">${icon}</span>
+      <span style="font-size:0.85rem;margin-left:8px">${d.ip}</span>
+      <small class="text-muted ms-2">${d.mac||''}</small>
+      <div style="font-size:0.72rem;color:#64748b">Last seen: ${new Date(d.last_seen).toLocaleTimeString()}</div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+const trafficFeed = document.getElementById('traffic-feed');
+let trafficRows = 0;
+
+function addTrafficRow(data) {
+  if (trafficRows === 0) trafficFeed.innerHTML = '';
+  trafficRows++;
+  if (trafficRows > 150) { trafficFeed.removeChild(trafficFeed.lastChild); trafficRows--; }
+  const ts = new Date(data.timestamp).toLocaleTimeString();
+  const div = document.createElement('div');
+  div.className = 'traffic-row d-flex justify-content-between';
+  div.innerHTML = `
+    <span style="color:#94a3b8;min-width:100px">${data.src_ip}</span>
+    <span style="color:#38bdf8;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:center">${data.domain}</span>
+    <span style="color:#64748b">${ts}</span>
+  `;
+  trafficFeed.insertBefore(div, trafficFeed.firstChild);
+}
+
+function rssiPct(rssi) { return Math.max(0, Math.min(100, ((rssi + 100) / 60) * 100)); }
+
+function updateBluetooth(devices) {
+  const feed = document.getElementById('bt-feed');
+  if (!devices || !devices.length) return;
+  feed.innerHTML = '';
+  [...devices].sort((a,b) => (b.rssi||-100)-(a.rssi||-100)).forEach(d => {
+    const pct = rssiPct(d.rssi);
+    const barCls = pct > 70 ? 'rssi-danger' : pct > 40 ? 'rssi-warn' : '';
+    const div = document.createElement('div');
+    div.className = 'bt-device' + (d.is_known_attacker ? ' bt-known-attacker' : '');
+    div.innerHTML = `
+      <div class="d-flex justify-content-between">
+        <span style="color:${d.is_known_attacker?'#f87171':'#cbd5e1'}">${d.is_known_attacker?'⚠️ ':''}${d.name||'Unknown'}</span>
+        <small style="color:#64748b">${d.rssi} dBm</small>
+      </div>
+      <small style="color:#475569">${d.mac} — ${d.proximity}</small>
+      <div class="rssi-bar mt-1"><div class="rssi-fill ${barCls}" style="width:${pct}%"></div></div>
+    `;
+    feed.appendChild(div);
+  });
+}
+
+function loadEvidence() {
+  fetch('/api/evidence').then(r=>r.json()).then(pkgs => {
+    const el = document.getElementById('evidence-list');
+    if (!pkgs.length) { el.innerHTML='<p class="text-muted" style="font-size:0.78rem">No packages yet.</p>'; return; }
+    el.innerHTML = pkgs.map(p=>`
+      <div class="d-flex justify-content-between align-items-center mb-1" style="font-size:0.78rem">
+        <span style="color:#94a3b8">${p.created.split('T')[0]}</span>
+        <a href="/api/evidence/download/${p.filename}" class="btn btn-sm btn-outline-secondary py-0" style="font-size:0.7rem">${p.size_kb}KB</a>
+      </div>`).join('');
+  });
+}
+
+function startMonitoring() { fetch('/api/start',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}); }
+function stopMonitoring()  { fetch('/api/stop',{method:'POST'}); }
+function lockdown() {
+  if (confirm('Activate network lockdown? Your phone will be alerted.'))
+    fetch('/api/lockdown',{method:'POST'});
+}
+function allClear() { fetch('/api/all_clear',{method:'POST'}).then(()=>setStatus('secure')); }
+function addAttacker() {
+  const mac = document.getElementById('attacker-mac').value.trim();
+  if (!mac) return;
+  fetch('/api/add_attacker',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mac})})
+    .then(r=>r.json()).then(()=>{
+      alert('Now tracking ' + mac + '. You will be alerted when this device approaches.');
+      document.getElementById('attacker-mac').value='';
+    });
+}
+
+function loadInitialData() {
+  fetch('/api/status').then(r=>r.json()).then(d=>{
+    setStatus(d.status);
+    updateStats(d.stats);
+    d.alerts.forEach(addAlert);
+    updateDevices(d.devices);
+    if (d.monitor_mode_active) {
+      const b=document.getElementById('monitor-badge');
+      b.className='monitor-badge monitor-active ms-2';
+      b.textContent='802.11 ACTIVE';
+    }
+  });
+  fetch('/api/devices').then(r=>r.json()).then(updateDevices);
+  fetch('/api/attacks').then(r=>r.json()).then(atks=>atks.forEach(addAlert));
+  fetch('/api/bluetooth').then(r=>r.json()).then(d=>updateBluetooth(d.live));
+  loadEvidence();
+}
+
+setInterval(()=>{
+  fetch('/api/status').then(r=>r.json()).then(d=>updateStats(d.stats));
+  fetch('/api/bluetooth').then(r=>r.json()).then(d=>updateBluetooth(d.live));
+}, 5000);
+</script>
+</body>
+</html>

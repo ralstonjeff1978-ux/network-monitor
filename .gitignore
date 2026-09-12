@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+# Scanned/captured local network data (private)
+monitor.db
+*.db
+.config_state
+evidence/
+# Accidental recursive duplicate of the project tree
+/network_monitor/
+# OS
+.DS_Store
+Thumbs.db
+*.log

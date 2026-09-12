@@ -1,0 +1,122 @@
+# Enhanced Network Monitor Application
+
+This application monitors your network traffic in real-time and detects potential security threats including deauthentication attacks, with special focus on ESP32-based deauther devices.
+
+> **Status & responsible use.** This is a personal/experimental defensive project. The active *countermeasures* (honeypots, channel-hopping, battery-drain, fake-success signals) and attacker-profiling features are **experimental** and intended only for defending a network you own or are explicitly authorized to protect. Check your local laws before enabling active defenses.
+
+## Features
+
+- Real-time network packet monitoring
+- Detection of deauthentication attacks
+- ESP32-based deauther device detection
+- ARP spoofing detection
+- Web-based dashboard
+- Honeypot deployment to waste attacker time
+- Attacker profiling and behavioral analysis
+- Automated countermeasures
+- Bluetooth proximity tracking
+
+## Prerequisites
+
+- Python 3.6+
+- Required Python packages:
+  - scapy
+  - flask
+  - bleak (for Bluetooth functionality)
+- Npcap (for Windows packet capture): https://nmap.org/npcap/
+
+## Installation
+
+1. Install required packages:
+   ```
+   pip install scapy flask bleak
+   ```
+
+2. Install Npcap (Windows):
+   - Download from: https://nmap.org/npcap/
+   - Run installer with default settings
+   - Restart your computer if prompted
+
+3. Clone or download this repository
+
+## Usage
+
+1. Run the application:
+   ```
+   python app.py
+   ```
+
+2. Open your web browser and navigate to:
+   ```
+   http://localhost:5000
+   ```
+
+3. Click the "Start Monitoring" button to begin monitoring network traffic
+
+## Enhanced Features
+
+### ESP32 Deauther Detection
+This application specifically detects ESP32-based deauther devices commonly used in DIY attack tools. It identifies:
+- Known ESP32 MAC address patterns
+- Beacon spam signatures
+- Deauthentication frame patterns
+- Firmware fingerprinting
+
+### Countermeasures (experimental)
+When attacks are detected, the application can automatically deploy:
+- Honeypot networks to waste attacker time
+- Battery drain tactics to exhaust attacker device batteries
+- Channel hopping to avoid targeted attacks
+- Fake success indicators to make attacks appear effective
+
+### Attacker Profiling
+The application builds behavioral profiles of attackers including:
+- Attack frequency and timing patterns
+- Preferred attack methods
+- Device fingerprinting
+- Effectiveness tracking
+
+### Automation
+The system runs continuously in the background:
+- Zero-conflict with gaming/work activities
+- Set-and-forget monitoring
+- Automated response triggers
+- Self-maintenance features
+
+## How This Application Protects You
+
+This application detects:
+- Deauthentication frames that disconnect users
+- Disassociation frames that force reconnections
+- Suspicious ARP traffic indicating spoofing attempts
+- ESP32-based deauther device signatures
+- Unusual network patterns
+
+When threats are detected, they appear in the "Security Alerts" section of the dashboard.
+
+## Installing Npcap for Full Functionality
+
+On Windows, this application requires Npcap to capture and analyze network packets in real-time:
+
+1. Download Npcap installer from: https://nmap.org/npcap/
+2. Run the installer with default settings
+3. Restart your computer if prompted
+4. Launch the Network Monitor application again
+
+Without Npcap, the application can still display the dashboard and show statistics, but it won't be able to capture live network packets for analysis.
+
+## Troubleshooting
+
+If you encounter issues:
+1. Ensure you're running the application as Administrator (right-click shortcut → "Run as administrator")
+2. Verify Npcap is properly installed
+3. Check that your firewall isn't blocking the application
+
+## Legal Considerations
+
+This application implements only defensive measures that are legally acceptable:
+- Does not cause permanent damage to devices
+- Does not violate privacy laws
+- Does not interfere with emergency services
+- Remains within acceptable use policies
+- Focuses on defensive time-wasting rather than offensive disruption
