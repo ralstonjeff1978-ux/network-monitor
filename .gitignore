@@ -1,18 +1,27 @@
+# Personal / runtime data — never publish
+guardian_state.json
+.config_state
+reports/
+guardian.log
+
+# Large public dataset (re-fetch with scripts/update_oui.py)
+data/oui.csv
+
+# Router / secret overrides
+config_local.py
+*.secret
+
 # Python
 __pycache__/
-*.py[cod]
-*.egg-info/
+*.pyc
+*.pyo
+.pytest_cache/
 .venv/
 venv/
-env/
-# Scanned/captured local network data (private)
+
+# runtime database (local events)
 monitor.db
 *.db
-.config_state
-evidence/
-# Accidental recursive duplicate of the project tree
-/network_monitor/
-# OS
-.DS_Store
-Thumbs.db
-*.log
+
+# nested duplicate cruft
+network_monitor/

@@ -498,10 +498,24 @@ if __name__ == '__main__':
 
     run_bluetooth()
 
+    # Combined package: start the always-on Home Guardian watchers (network presence + exposure,
+    # Wi-Fi evil-twin/ESP detection, and mic/webcam access) alongside the dashboard, Bluetooth
+    # tracker and (opt-in) packet monitor. One launch = the whole protector.
+    try:
+        import guardian
+        guardian.start_background(interval=60, deep_every=10)
+        print('[GUARDIAN] Always-on watchers started (network, Wi-Fi, mic/cam).')
+    except Exception as e:
+        print(f'[GUARDIAN] watchers not started: {e}')
+
     tray_thread = threading.Thread(target=run_tray, daemon=True)
     tray_thread.start()
 
     print(f'\n[SERVER] Dashboard: http://localhost:{DASHBOARD_PORT}')
     print('[SERVER] Starting...\n')
 
-    socketio.run(app, host='0.0.0.0', port=DASHBOARD_PORT, debug=False)
+    # Bind the dashboard to loopback only — a security tool must not expose its own control
+    # panel to the LAN (that would be the very hole it's meant to catch). Set GUARDIAN_LAN=1
+    # to override if you deliberately want it reachable from other devices.
+    _host = '0.0.0.0' if os.environ.get('GUARDIAN_LAN') == '1' else '127.0.0.1'
+    socketio.run(app, host=_host, port=DASHBOARD_PORT, debug=False)

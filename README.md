@@ -1,20 +1,34 @@
-# Enhanced Network Monitor Application
+# Home Guardian — local, always-on home-network protector
 
-This application monitors your network traffic in real-time and detects potential security threats including deauthentication attacks, with special focus on ESP32-based deauther devices.
+A single, private, **100% local** home-network security package: it inventories every device,
+tells you what's exposed, watches for intrusion and surveillance, and alerts your phone — all
+without a cloud account and **without adding latency to gaming** (the monitoring is passive and
+out-of-band). One launch (`Home-Guardian.cmd`) starts the dashboard **and** the always-on watchers.
 
-> **Status & responsible use.** This is a personal/experimental defensive project. The active *countermeasures* (honeypots, channel-hopping, battery-drain, fake-success signals) and attacker-profiling features are **experimental** and intended only for defending a network you own or are explicitly authorized to protect. Check your local laws before enabling active defenses.
+> **Status & responsible use.** Personal/defensive project for a network you own or are explicitly
+> authorized to protect. It performs **no attacks** — it detects, reports, and (optionally, on your
+> own router) blocks. The experimental *countermeasures* (honeypots, channel-hopping) are simulated
+> and do not transmit. Check local laws before enabling any active defense.
 
-## Features
+## What it does
 
-- Real-time network packet monitoring
-- Detection of deauthentication attacks
-- ESP32-based deauther device detection
-- ARP spoofing detection
-- Web-based dashboard
-- Honeypot deployment to waste attacker time
-- Attacker profiling and behavioral analysis
-- Automated countermeasures
-- Bluetooth proximity tracking
+**Always-on watchers (no special hardware, gaming-safe):**
+- **Device presence + inventory** — accurate make/vendor via the full IEEE OUI registry; alerts the moment an unknown device joins.
+- **Exposure audit** — per-device risky-port scan (Telnet/DVRIP/RTSP/SMB/UPnP/…) with a prioritized, plain-English hardening plan.
+- **Internet-exposure self-check** — your public IP + your router's UPnP port-forwards, so you know if a camera/service is reachable from the outside world (gaming-console forwards are recognized as expected).
+- **Wi-Fi environment watch** — evil-twin (your SSID from a rogue radio), ESP32/ESP8266 deauther APs, beacon spam, and WPA2-vs-WPA3/PMF posture — all via an ordinary adapter (`netsh`).
+- **Microphone / webcam access** — alerts when any app starts using your mic or camera (reads Windows' own usage ledger).
+
+**Plus (from the original monitor):** real-time packet monitoring (deauth/ARP/DNS/ESP32, needs a monitor-mode adapter), Bluetooth proximity tracking, a web dashboard (loopback-only), system tray, phone push via ntfy, and a local event database.
+
+## Quick start
+
+```
+python app.py            # the full package: dashboard + always-on watchers + tray
+python guardian.py       # just the headless watchers (network + Wi-Fi + mic/cam)
+python guardian_audit.py --sweep   # one-shot exposure + internet + hardening report
+python scripts/update_oui.py       # refresh the device-vendor database
+```
 
 ## Prerequisites
 
